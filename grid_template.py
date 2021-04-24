@@ -53,7 +53,7 @@ tradelog_file = "{}_tradinglog.csv".format(subaccount)
 trading_call_back = 10
 
 # Rebalance Condition
-time_sequence = [3, 1, 4, 1, 5, 9, 2]  # Rebalancing Time Sequence (เวลาที่จะใช้ในการ Rebalance ใส่เป็นเวลาเดี่ยว หรือชุดตัวเลขก็ได้)
+time_sequence = [30]  # Trading Time Sequence (เวลาที่จะใช้ในการ Rebalance ใส่เป็นเวลาเดี่ยว หรือชุดตัวเลขก็ได้)
 
 # List to Dict Setting
 token_fix_value = {token_name_lst[i]: fix_value_lst[i] for i in range(len(token_name_lst))}
