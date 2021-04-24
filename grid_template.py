@@ -27,10 +27,10 @@ exchange.headers = {'FTX-SUBACCOUNT': subaccount,}
 post_only = True  # Maker or Taker (วางโพซิชั่นเป็น MAKER เท่านั้นหรือไม่ True = ใช่)
 
 # Global Varibale Setting
-min_trade_size = 2  # Minimum Rebalance Size ($)
+min_trade_size = 1  # Minimum Trading Size ($)
 token_name_lst =["XRP"]  # Name of Rebalancing Token (ใส่ชื่อเหรียญที่ต้องการ Rebalance)
 pair_lst = ["XRP/USD"]  # Rebalancing Pair (ใส่ชื่อคู่ที่ต้องการ Rebalance เช่น XRP จะเป็น XRP/USD)
-fix_value_lst = [0]  # Rebalancing Ratio (ใส่สัดส่วนที่ต้องการ Rebalance หน่วยเป็น $)
+fix_value_lst = [0]  # ไม่ต้องแก้อะไร
 
 # Fix Value Setting
 capital = 100
