@@ -239,10 +239,9 @@ def checkDB():
         tradinglog = pd.read_csv("{}_tradinglog.csv".format(subaccount))
         print('DataBase Exist Loading DataBase....')
     except:
-        tradinglog = pd.DataFrame(columns=['id', 'timestamp', 'datetime', 'symbol', 'side', 'price', 'amount', 'cost', 'fee'])
+        tradinglog = pd.DataFrame(columns=['id', 'timestamp', 'time', 'pair', 'side', 'price', 'qty', 'fee', 'timeseries', 'bot_name', 'subaccount'])
         tradinglog.to_csv("{}_tradinglog.csv".format(subaccount),index=False)
         print("Database Created")
-        
         
     return tradinglog
 
