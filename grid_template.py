@@ -8,6 +8,8 @@ import pandas as pd
 import time
 import decimal
 from datetime import datetime
+import pytz
+import csv
 
 # Api and secret
 api_key = ""  
@@ -27,16 +29,16 @@ exchange.headers = {'FTX-SUBACCOUNT': subaccount,}
 post_only = True  # Maker or Taker (วางโพซิชั่นเป็น MAKER เท่านั้นหรือไม่ True = ใช่)
 
 # Global Varibale Setting
-min_trade_size = 1  # Minimum Trading Size ($)
-token_name_lst =["XRP"]  # Name of Rebalancing Token (ใส่ชื่อเหรียญที่ต้องการ Rebalance)
-pair_lst = ["XRP/USD"]  # Rebalancing Pair (ใส่ชื่อคู่ที่ต้องการ Rebalance เช่น XRP จะเป็น XRP/USD)
+min_trade_size = 0.25  # Minimum Trading Size ($)
+token_name_lst =["DOGE"]  # Name of Rebalancing Token (ใส่ชื่อเหรียญที่ต้องการ Rebalance)
+pair_lst = ["DOGE/USD"]  # Rebalancing Pair (ใส่ชื่อคู่ที่ต้องการ Rebalance เช่น XRP จะเป็น XRP/USD)
 fix_value_lst = [0]  # ไม่ต้องแก้อะไร
 
 # Fix Value Setting
 capital = 100
-step = 0.011
-upzone = 1.875
-lowzone = 0.875
+step = 0.0025
+upzone = 0.50
+lowzone = 0.25
 
 # Equation calculation
 zone_range = round(upzone - (lowzone), 10)
@@ -53,7 +55,7 @@ tradelog_file = "{}_tradinglog.csv".format(subaccount)
 trading_call_back = 10
 
 # Rebalance Condition
-time_sequence = [30]  # Trading Time Sequence (เวลาที่จะใช้ในการ Rebalance ใส่เป็นเวลาเดี่ยว หรือชุดตัวเลขก็ได้)
+time_sequence = [1]  # Trading Time Sequence (เวลาที่จะใช้ในการ Rebalance ใส่เป็นเวลาเดี่ยว หรือชุดตัวเลขก็ได้)
 
 # List to Dict Setting
 token_fix_value = {token_name_lst[i]: fix_value_lst[i] for i in range(len(token_name_lst))}
@@ -143,6 +145,14 @@ def get_cash():
         if t['coin'] == 'USD':
             cash = float(t['availableWithoutBorrow'] )
     return cash
+
+def get_last_trade_price(pair):
+    pair = pair
+    trade_history = pd.DataFrame(exchange.fetchMyTrades(pair, limit = 1),
+                            columns=['id', 'timestamp', 'datetime', 'symbol', 'side', 'price', 'amount', 'cost', 'fee'])
+    last_trade_price = trade_history['price']
+    
+    return float(last_trade_price)
 
 def buy_execute():
     pending_buy = get_pending_buy()
@@ -402,6 +412,7 @@ while True:
                         asset_amount = float((item['availableWithoutBorrow']))
                         min_size = get_minimum_size()
                         fix_asset_control = (a * price) + b
+                        last_trade_price = get_last_trade_price(pair)
 
                         while price > upzone:
                             if asset_amount > min_size:
@@ -430,7 +441,7 @@ while True:
                             print('Base Trading Size is {}'.format(base_size))
                             
                             # Check trading BUY trigger
-                            if asset_amount <= fix_asset_control - base_size:
+                            if asset_amount <= fix_asset_control - base_size and price < last_trade_price - step:
                                 print("Current {} asset less than fix asset : Trading -- Buy".format(asset_name))
                                         
                                 # Create trading params
@@ -458,10 +469,10 @@ while True:
                                     print('Your Cash is {} // Minimum Trade Value is {}'.format(cash, min_trade_value))
                                     
                             # Check trading SELL trigger        
-                            elif asset_amount >= fix_asset_control + base_size:
+                            elif asset_amount >= fix_asset_control + base_size and price > last_trade_price + step:
                                 print("Current {} Amount more than fix amount : Trading -- Sell".format(asset_name))
                                 
-                                # Create trading params
+                                # Create sell trading params
                                 price = get_price()
                                 bid_price = get_bid_price()
                                 min_size = get_minimum_size()
@@ -485,7 +496,13 @@ while True:
                                     print('You are selling {} {} BUT Minimum Trade amount is {}'.format(sell_size, asset_name, min_size))
                                 
                             else:
-                                print("Current {} amount is not reach fix Asset Trigger yet : Waiting".format(asset_name))
+                                if abs(price - last_trade_price) < step:
+                                    diff_price = price - last_trade_price
+                                    print("Diff from last trade is {}".format((diff_price)))
+                                    print("Current price diff is not reach {} yet : Waiting".format(step))
+                                else:
+                                    print("Current {} amount is not reach fix Asset Trigger yet : Waiting".format(asset_name))
+
                                 print("------------------------------")
                                 time.sleep(5)
         
