@@ -70,15 +70,15 @@ def get_time():  # เวลาปัจจุบัน
 
 def get_price():
     price = exchange.fetch_ticker(pair)['last']
-    return price
+    return float(price)
 
 def get_ask_price():
     ask_price = exchange.fetch_ticker(pair)['ask']
-    return ask_price
+    return float(ask_price)
 
 def get_bid_price():
     bid_price = exchange.fetch_ticker(pair)['bid']
-    return bid_price
+    return float(bid_price)
 
 def get_pending_buy():
     pending_buy = []
@@ -112,7 +112,8 @@ def create_sell_order():
     exchange.create_order(pair, types, side, size, price, {'postOnly': post_only})
     print("{} Sell Order Created".format(asset_name))
     
-def cancel_order():
+def cancel_order(order_id):
+    order_id = order_id
     exchange.cancel_order(order_id)
     print("Order ID : {} Successfully Canceled".format(order_id))
 
@@ -167,13 +168,13 @@ def buy_execute():
             print('Buy Order is not match, Resending...')
             pending_buy_id = get_pending_buy()[0]['id']
             order_id = pending_buy_id
-            cancel_order()  
+            cancel_order(order_id)  
     else:
         pending_buy_id = get_pending_buy()[0]['id']
         print("Pending BUY Order Found")
         print("Canceling pending Order")
         order_id = pending_buy_id
-        cancel_order()
+        cancel_order(order_id)
         pending_buy = get_pending_buy()
 
         if pending_buy == []:
@@ -204,14 +205,14 @@ def sell_execute():
             print('Sell Order is not match, Resending...')
             pending_sell_id = get_pending_sell()[0]['id']
             order_id = pending_sell_id
-            cancel_order()
+            cancel_order(order_id)
 
     else:
         pending_sell_id = get_pending_sell()[0]['id']
         print("Pending Order Found")
         print("Canceling pending Order")
         order_id = pending_sell_id
-        cancel_order()
+        cancel_order(order_id)
         time.sleep(1)
         pending_sell = get_pending_sell()
 
@@ -246,7 +247,8 @@ def get_trade_history(pair):
     
     cost=[]
     for i in range(len(trade_history)):
-        cost.append((trade_history['fee'][i]['cost']))  # ใน fee เอาแค่ cost
+        fee = trade_history['fee'].iloc[i]['cost'] if trade_history['fee'].iloc[i]['currency'] == 'USD' else trade_history['fee'].iloc[i]['cost'] * trade_history['price'].iloc[i]
+        cost.append(fee)  # ใน fee เอาแค่ cost
     
     trade_history['fee'] = cost
     
@@ -272,8 +274,26 @@ def update_trade_log(pair):
         if int(i) not in tradinglog.values:
             print(i not in tradinglog.values)
             last_trade = trade_history.loc[trade_history['id'] == i]
-            tradinglog = pd.concat([last_trade,tradinglog],ignore_index=True)
-            tradinglog.to_csv("{}_tradinglog.csv".format(subaccount),index=False)
+            list_last_trade = last_trade.values.tolist()[0]
+
+            # แปลงวันที่ใน record
+            d = datetime.strptime(list_last_trade[2], "%Y-%m-%dT%H:%M:%S.%fZ")
+            d = pytz.timezone('Etc/GMT+7').localize(d)
+            d = d.astimezone(pytz.utc)
+            Date = d.strftime("%Y-%m-%d")
+            Time = d.strftime("%H:%M:%S")
+            time_serie = (d.weekday()*1440)+(d.hour*60)+d.minute
+            
+            # edit & append ข้อมูลก่อน add เข้า database
+            list_last_trade[1] = Date
+            list_last_trade[2] = Time
+            list_last_trade.append(time_serie)
+            list_last_trade.append(account_name)
+            list_last_trade.append(subaccount)
+
+            with open("{}_tradinglog.csv".format(subaccount), "a+", newline='') as fp:
+                wr = csv.writer(fp, dialect='excel')
+                wr.writerow(list_last_trade)
             print('Recording Trade ID : {}'.format(i))
         else:
             print('Trade Already record')
@@ -458,7 +478,7 @@ while True:
                                 sell_price = bid_price + (3 * step_price)
                                 
                                 # SELL order execution
-                                if diff > min_trade_value and sell_size > min_size:
+                                if diff > base_size and sell_size > min_size:
                                     sell_execute()
                                 else:
                                     print("Not Enough Balance to sell {}".format(asset_name))
